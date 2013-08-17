@@ -1,0 +1,460 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<script src="jquery-1.9.1.js"></script>
+	<script src="jQueryRotate.2.2.js"></script>
+	<script src="jquery-ui.js"></script>
+	<script src="plax.js"></script>
+	<script type = "text/javascript">
+		var loc;
+		var temperature;
+		var condition;
+		var speed;
+		var sunrise; // in minutes
+		var sunset; //in minutes
+		var day;
+		var animating = false;
+		zip = 83642;
+		var reach = 3000;
+		var lights_on = false;
+		$(document).ready(function() {
+			get_weather(zip);
+			animate_top_right_img();
+			resize_objects();
+			neon_flicker();
+			master_planet();
+
+
+			$("#zipcode_input").keyup(function (e) {
+    			if (e.keyCode == 13) {
+        			move_to($('#zipcode_input').val());
+       		 		
+    			}
+		});
+
+		});
+
+		$(window).resize(function() {
+  			resize_objects();
+		});
+
+		function resize_objects() {
+			$('#top_right').css("left", window.innerWidth - 300);
+			
+		}
+
+		function get_weather(zipcode) {
+		 var stuff = $.getJSON("http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20location%3D%22" + zipcode + "%22&format=json",function(result) {
+			 		parse_weather(result);
+			 });
+		}
+
+		function animate_top_right_img() {
+			var angle = 0;
+			setInterval(function() {
+				angle+=1;
+				$("img#top_right").rotate(angle);
+			}, 50);
+		}
+
+		function move_to(zipcode) {
+			$(".cloud").remove();
+			get_weather(zipcode);
+		}
+
+		function time_to(time) {
+			sunrise_sunset(time)
+		}
+
+		function time_to_minutes(time) {
+			median = time.split(" ")[1];
+			time_time = time.split(" ")[0];
+			hr = parseInt(time_time.split(":")[0]);
+			min = parseInt(time_time.split(":")[1]);
+
+			time_in_minutes = (hr * 60) + min;
+			if (median == "pm") {
+				time_in_minutes = parseInt(time_in_minutes) + 720;
+			}
+			return time_in_minutes;
+		}
+
+		function parse_weather(data) {
+			console.log(data);
+			loc = data.query.results.channel.location.city + ", " +data.query.results.channel.location.region;
+			temperature = data.query.results.channel.item.condition.temp;
+			condition = data.query.results.channel.item.condition.text;
+			speed = data.query.results.channel.wind.speed;
+			sunrise = time_to_minutes(data.query.results.channel.astronomy.sunrise);
+			sunset = time_to_minutes(data.query.results.channel.astronomy.sunset);
+
+			today_high = data.query.results.channel.item.forecast[0].high;
+			today_low = data.query.results.channel.item.forecast[0].low;
+			console.log(today_high);
+
+			$("#location").html(loc);
+			$("#bound").html(today_low + "&deg | " + today_high + "&deg");
+			$("#temperature").html(temperature + "&deg");
+			$("#condition").html(condition);
+			$("#sun_data").html(data.query.results.channel.astronomy.sunrise + " | " + data.query.results.channel.astronomy.sunset);
+
+			set_conditions(condition);
+			sunrise_sunset(date_to_minutes(new Date()));
+		}
+
+		 function master_planet() {
+			setInterval(function() {
+				if (!animating) {
+					sunrise_sunset(date_to_minutes(new Date()));
+
+				}
+			}, 5000);
+		 }
+		function hurricane() {
+			speed = 100;
+			make_clouds(10, .5, false);
+			
+		}
+
+		function set_conditions(condition) {
+			var cloud_count = 10;
+			var cloud_opacity = 1;
+			if (condition == 'Cloudy') {
+				$('body').css("background-color", "#7ECEFD");
+				cloud_count = 3;
+				cloud_opacity = .3;
+				reach = 1500;
+			} else if (condition == "Mostly Cloudy") {
+				$('body').css('background-color', '#7ECEFD');
+				cloud_count = 5;
+				cloud_opacity = .8;
+				reach = 2000;
+			} else if (condition == "Fair") {
+				$('body').css("background-color", "#7ECEFD");
+				cloud_count = 1;
+				cloud_opacity = .2;
+				reach = 9000;
+			} else if (condition == "Cloudy/Windy") {
+				$('body').css("background-color", "#7ECEFD");
+				cloud_count = 5;
+				cloud_opacity = .7;
+				reach = 1500;
+			} else if (condition == "Partly Cloudy") {
+				$('body').css("background-color", "#7ECEFD");
+				cloud_count = 3;
+				cloud_opacity = .5;
+				reach = 3000;
+			} else if (condition == "Light Snow") {
+				$('body').css("background-color", "#7ECEFD");
+				cloud_count = 3;
+				cloud_opacity = .6;
+				reach = 1500;
+			} else if (condition == "Snow/Fog") {
+				cloud_count = 20;
+				cloud_opacity = .9;
+				reach = 1500;
+			} else {
+				alert("Unknown weather style: " + condition);
+			}
+
+			make_clouds(cloud_count, cloud_opacity, false);
+		}
+
+		function date_to_minutes(date_object) {
+			return time_to_minutes(date_object.getHours() + ":" + date_object.getMinutes() + " nu");
+		}
+
+		function animate_day() {
+			console.log("from animation func" + animating);
+			animating = true;
+			setTimeout(function() {
+				animating = false;
+				console.log("from animation func post post " + animating);
+			}, 15000);
+			var time = 0;
+			var animate_day_interval = setInterval(function() {
+				sunrise_sunset(time);
+				time += 10;
+				if (time > 1440) {
+					clearInterval(animate_day_interval);
+				}
+			}, 50);
+			
+		}
+
+		function sunrise_sunset(date_in_minutes) {
+			now_in_minutes = date_in_minutes;
+			midday = (sunrise + sunset) / 2;
+			midnight = (sunset + (((1440 - sunset) + sunrise) / 2));
+			tomorrow_sunrise = sunrise + 1440;
+
+			var img;
+			var time_until_peak;
+			var time_until_set;
+			var red;
+			var green;
+			var blue;
+
+			if ((now_in_minutes >= sunrise) && (now_in_minutes < midday)) {
+				day = true;
+				// sun coming up
+				time_until_peak = midday - now_in_minutes;
+				ratio = time_until_peak / (midday - sunrise);
+				img = 'sun.png';
+			} else if ((now_in_minutes >= midday) && (now_in_minutes < sunset)) {
+				day = true;
+				// sun coming down
+				time_until_set = sunset - now_in_minutes;
+				ratio = time_until_set / (sunset - midday);
+				img = 'sun.png';
+				ratio = 1- ratio;
+			} else if ((now_in_minutes >= sunset) && (now_in_minutes < midnight)) {
+				day = false;
+				// moon coming up
+				time_until_peak = midnight - now_in_minutes;
+				ratio = time_until_peak / (midnight - sunset);
+				img = 'moon.png';
+			} else {
+				day = false;
+				if (now_in_minutes < 700) {
+					now_in_minutes += 1440;
+				}
+				// moon coming down
+				time_until_set = tomorrow_sunrise - now_in_minutes;
+				ratio = time_until_set / (tomorrow_sunrise - midnight);
+				img = 'moon.png';
+				ratio = 1 - ratio;
+			}
+			
+			if (ratio  > .85) {
+				lights_on = true;
+			} else {
+				lights_on = false;
+			}
+			
+			console.log(ratio);
+
+			top_pos = ((window.innerHeight + 250) * ratio) - 250;
+			$("#top_right").css("top",top_pos);
+			$("#top_right").attr("src",img);
+
+			ratio_inv = (1-ratio) * 2;
+			
+
+			var planet_x = parseInt($("#top_right").css("left")) + 250;
+			var planet_y = parseInt($("#top_right").css("top")) + 250;
+
+			if (day) {
+				red = parseInt(188 * ratio_inv);
+				green = parseInt(241 * ratio_inv);
+				blue = parseInt(237 * ratio_inv);
+
+				$("h1").css('text-shadow', 'none');
+				$("h1").css('color','black');
+				$("h1").css('font-family','helvetica');
+
+
+			} else {
+				red = parseInt(29 * ratio_inv);
+				green = parseInt(22 * ratio_inv);
+				blue = parseInt(38 * ratio_inv);
+
+				$("h1").css('font-family','Neon');
+
+			}
+
+			$("body").css("background-color", "rgb(" + red + "," + green + "," + blue + ")");
+			$("#light_source").css('left', planet_x);
+			$("#light_source").css('top', planet_y);
+			$('#light_source').css({background: '-webkit-gradient(radial, ' + planet_x + ' ' + planet_y + ', 500, ' + planet_x + ' ' + planet_y + ', ' + reach + ', from(rgba(0,0,0,0)), to(black))'});
+		}
+
+		function neon_flicker() {
+			main_interval = setInterval(function() {
+				if (lights_on || !day) {
+				$("h1").css('font-family','Neon');
+					if (Math.random() > .9) {
+						setTimeout(function() {
+							$("h1").css('text-shadow', 'none');
+							$("h1").css('color','black');
+						},Math.random() * 500)
+					}
+					$("h1").css('color','white');
+					$("h1").css('text-shadow', '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 10px #B500C7, 0 0 20px #B500C7, 0 0 20px #B500C7, 0 0 20px #B500C7, 0 0 40px #B500C7');
+				} else {
+					$("h1").css('text-shadow', 'none');
+					$("h1").css('color','black');
+					$("h1").css('font-family','helvetica');
+				}
+			}, 500);
+		}
+
+		function make_clouds(number, opacity, top_only) {
+			for (var i = 0; i < number; i++) {
+				$('body').append("<img class = 'cloud' id='cloud" + i + "' src='cloud.png' />");
+				$("#cloud" + i).css("left",(((window.innerWidth + 1000) * Math.random()) - 500));
+
+				if (!top_only) {
+					$("#cloud" + i).css("top",(((window.innerHeight + 1000) * Math.random()) - 500));					
+				}
+
+
+				animate_cloud($("#cloud" + i));
+			}
+			$(".cloud").css("opacity",opacity);
+			$(".cloud").draggable();
+		}
+
+		function animate_cloud(cloud) {
+			var pos = parseInt(cloud.css("left"));
+			cloud_speed = parseInt(speed);
+			setInterval(function() {
+			if( !cloud.hasClass("ui-draggable-dragging")) {
+				pos = parseInt(cloud.css("left")) + cloud_speed;
+				if (pos > window.innerWidth + 500) {
+					pos = -500;
+				}
+				cloud.css("left",pos);
+			}
+			}, 50);
+		}
+
+		
+
+
+	</script>
+
+	<style type = "text/css">
+
+		@font-face {
+			font-family: Neon;
+			src: url("Neon.ttf") format("trueType");
+		}
+
+
+
+		body {
+			overflow:hidden;
+			background-color: #7ECEFD;
+			margin: 0px;
+		}
+
+		#top_right {
+			position:absolute;
+			top:-250px;
+			height:500;
+			width:500;
+		}
+
+		.cloud {
+			position:absolute;
+			top:-250px;
+			left:0px;
+		}
+
+		div#data {
+			position:absolute;
+			top: 50px;
+			left: 50px;
+		}
+
+		h1, div, img {
+			-webkit-user-select:none;
+		}
+
+		h1 {
+			margin: 0px;
+			padding:0px;
+			font-size: 125px;
+			font-family: Helvetica;
+			font-weight: 100;
+			font-family: "Neon";
+		}
+
+		#location {
+			font-size: 75px;
+		}
+
+		#temperature {
+
+		}
+
+		#condition {
+
+		}
+
+		#sun_data {
+			font-size:30pt;
+		}
+
+		a:hover, a, a:visited {
+			color:black;
+			font-family: helvetica;
+			font-size: 12pt;
+		}
+
+		#footer {
+			position:absolute;
+			bottom:0px;
+			margin-left:auto;
+			margin-right:auto;
+			width:100%;
+			text-align: center;
+		}
+
+		#light_source {
+			margin:0px;
+			padding:0px;
+			height:100%;
+			width:100%;
+			z-index:100;
+		}
+
+		html,body {
+	    	height:100%;
+		}
+
+		#bound, #temperature {
+			display: inline;
+		}
+
+		#bound {
+			font-size: 50pt;
+		}
+
+	</style>
+
+</head>
+<body>
+	<div id="light_source"></div>
+	<img id="top_right" src="sun.png"/>
+	<div id="data">
+		<h1 id="location">
+		</h1>
+		<h1 id="temperature">
+		</h1>
+		
+		<h1 id="condition">
+		</h1>
+		<h1 id="sun_data">
+		</h1>
+		<h1 id = "bound"></h1>
+	</div>
+	<div id="footer">
+		<a href="#" onclick = "move_to(93401)">slo</a> |
+		<a href="#" onclick = "move_to(83642)">boise</a> |
+		<a href="#" onclick = "move_to(98101)">seattle</a> |
+		<a href="#" onclick = "move_to(60647)">chicago</a> |
+		<a href="#" onclick = "move_to(96801)">honolulu</a> |
+		<a href="#" onclick = "move_to(20712)">mt rieneir</a> |
+		<a href="#" onclick = "move_to(55604)">somewhere north</a> |
+		<a href="#" onclick = "move_to(99510)">anchorage</a> |
+		<a href="#" onclick = "move_to(99664)">seward alaska</a> |
+		<a href="#" onclick = "animate_day()">animate day</a> |
+		<a href="#" onclick = "hurricane()">hurricane</a> 
+		<input type = "text" id = "zipcode_input">
+	</div>
+
+</body>
+
+</html>
